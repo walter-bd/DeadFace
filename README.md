@@ -95,6 +95,16 @@ I am a visual artist, and coding is only a means to achieve results i need, lot 
   Uses the IP and port you enter in the fields below.
 </p>
 
+<h3>Output Modes</h3>
+<p>
+  <strong>DeadFace UDP Output</strong><br>
+  Sends the existing PyLiveLinkFace/UDP packet format used by the current Blender, FACE-It, Unreal, and custom workflows.
+</p>
+<p>
+  <strong>VMC / VSeeFace Output</strong><br>
+  Sends each frame as VMC/OSC blendshape messages for tools such as VSeeFace that expect VMC-compatible input instead of arbitrary UDP packets.
+</p>
+
 <h3>Set Neutral Pose</h3>
 <p>
   Captures your <em>current live face</em> as the neutral reference for the streaming mode.
@@ -154,4 +164,34 @@ I am a visual artist, and coding is only a means to achieve results i need, lot 
   Collapses or expands the panel to hide or show the sliders.
 </p>
 
+<hr>
+
+<h2 id="vseeface-vmc">Using DeadFace with VSeeFace via VMC</h2>
+<p>
+  VSeeFace does <strong>not</strong> accept the existing DeadFace arbitrary UDP packet format for Perfect Sync.
+  To drive VSeeFace, DeadFace must send blendshape values in <strong>VMC / OSC</strong> format.
+</p>
+
+<h3>Setup Steps</h3>
+<ul>
+  <li>Open <strong>Stream Mode</strong> in DeadFace.</li>
+  <li>Enable <strong>VMC / VSeeFace Output</strong>.</li>
+  <li>Set <strong>VMC Host</strong> to <code>127.0.0.1</code> when DeadFace and VSeeFace run on the same PC.</li>
+  <li>Set <strong>VMC Port</strong> to <code>39540</code>, or match whatever port VSeeFace is listening on.</li>
+  <li>Leave <strong>DeadFace UDP Output</strong> enabled if you still want the old UDP stream at the same time.</li>
+</ul>
+
+<h3>In VSeeFace</h3>
+<ul>
+  <li>Enable its <strong>VMC receiver</strong>.</li>
+  <li>Set the receiver port to <code>39540</code>, or the same port configured in DeadFace.</li>
+  <li>Make sure your avatar includes the required <strong>VRM0 / Perfect Sync / ARKit</strong> blendshape clips.</li>
+</ul>
+
+<h3>Troubleshooting</h3>
+<ul>
+  <li>If both programs are on the same Windows machine and nothing moves, check that <strong>Windows Firewall</strong> is not blocking local UDP traffic.</li>
+  <li>If VSeeFace receives VMC but expressions still do not animate correctly, verify the avatar actually has the expected ARKit/Perfect Sync clips.</li>
+  <li>Use <code>send_test_vmc_blendshapes.py</code> first to confirm VSeeFace receives VMC before debugging MediaPipe tracking itself.</li>
+</ul>
 

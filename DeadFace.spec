@@ -31,6 +31,7 @@ a = Analysis(
         'mediapipe.tasks.python.vision',
         'transforms3d',
         'numpy',
+        'pythonosc',
         'main',
         'main_stream'
     ],

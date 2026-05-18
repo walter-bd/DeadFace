@@ -336,6 +336,54 @@ class DualApp:
         self.port_entry.insert(0, "11111")
         self.port_entry.grid(row=0, column=3, padx=5, sticky="w")
 
+        self.send_deadface_udp_var = ctk.BooleanVar(value=True)
+        self.enable_vmc_output_var = ctk.BooleanVar(value=False)
+        self.vmc_debug_var = ctk.BooleanVar(value=False)
+
+        output_modes_frame = ctk.CTkFrame(self.stream_frame, fg_color="transparent", corner_radius=0, border_width=0)
+        output_modes_frame.pack(pady=(0, 5), fill="x")
+
+        ctk.CTkCheckBox(
+            output_modes_frame,
+            text="DeadFace UDP Output",
+            variable=self.send_deadface_udp_var,
+            onvalue=True,
+            offvalue=False
+        ).pack(side="left", padx=5)
+
+        ctk.CTkCheckBox(
+            output_modes_frame,
+            text="VMC / VSeeFace Output",
+            variable=self.enable_vmc_output_var,
+            onvalue=True,
+            offvalue=False
+        ).pack(side="left", padx=5)
+
+        ctk.CTkCheckBox(
+            output_modes_frame,
+            text="VMC Debug",
+            variable=self.vmc_debug_var,
+            onvalue=True,
+            offvalue=False
+        ).pack(side="left", padx=5)
+
+        vmc_config_frame = ctk.CTkFrame(self.stream_frame, fg_color="transparent", corner_radius=0, border_width=0)
+        vmc_config_frame.pack(pady=(0, 5), fill="x", expand=True)
+        vmc_config_frame.grid_columnconfigure(0, weight=0)
+        vmc_config_frame.grid_columnconfigure(1, weight=1)
+        vmc_config_frame.grid_columnconfigure(2, weight=0)
+        vmc_config_frame.grid_columnconfigure(3, weight=0)
+
+        ctk.CTkLabel(vmc_config_frame, text="VMC Host:").grid(row=0, column=0, sticky="w", padx=5)
+        self.vmc_host_entry = ctk.CTkEntry(vmc_config_frame, placeholder_text="127.0.0.1")
+        self.vmc_host_entry.insert(0, "127.0.0.1")
+        self.vmc_host_entry.grid(row=0, column=1, padx=5, sticky="we")
+
+        ctk.CTkLabel(vmc_config_frame, text="VMC Port:").grid(row=0, column=2, sticky="e", padx=(10, 5))
+        self.vmc_port_entry = ctk.CTkEntry(vmc_config_frame, width=100)
+        self.vmc_port_entry.insert(0, "39540")
+        self.vmc_port_entry.grid(row=0, column=3, padx=5, sticky="w")
+
         # === Container for canvas + advanced sliders ===
         self.content_frame = ctk.CTkFrame(root, fg_color="transparent", corner_radius=0, border_width=0)
         self.content_frame.pack(pady=10, fill="both", expand=False)
@@ -1034,7 +1082,12 @@ class DualApp:
             # Touch mode: fixed UDP
             if not self.running_stream:
                 self.running_stream = True
-                self.stream_runner = CameraStreamRunner("192.168.0.16", 11111)
+                self.stream_runner = CameraStreamRunner(
+                    "192.168.0.16",
+                    11111,
+                    enable_vmc_output=False,
+                    send_deadface_udp_too=True,
+                )
                 threading.Thread(
                     target=lambda: self.stream_runner.run(
                         display_callback=lambda f: self.update_canvas_frame(f)),
@@ -1062,7 +1115,12 @@ class DualApp:
                 # 1. GRAB THE VALUES FROM YOUR NEW UI ELEMENTS HERE
                 udp_address = self.udp_entry.get()
                 udp_port = int(self.port_entry.get())
-                
+                enable_vmc_output = self.enable_vmc_output_var.get()
+                vmc_host = self.vmc_host_entry.get().strip() or "127.0.0.1"
+                vmc_port = int(self.vmc_port_entry.get())
+                send_deadface_udp_too = self.send_deadface_udp_var.get()
+                vmc_debug = self.vmc_debug_var.get()
+
                 # Check if we should use Webcam or Pi
                 source_mode = self.stream_source.get() # From the radio button
                 if source_mode == "instream":
@@ -1076,7 +1134,12 @@ class DualApp:
                 self.stream_runner = CameraStreamRunner(
                     udp_address, 
                     udp_port, 
-                    source=chosen_source
+                    source=chosen_source,
+                    enable_vmc_output=enable_vmc_output,
+                    vmc_host=vmc_host,
+                    vmc_port=vmc_port,
+                    send_deadface_udp_too=send_deadface_udp_too,
+                    vmc_debug=vmc_debug,
                 )
 
                 def update_safe(frame_bgr):
@@ -1266,6 +1329,5 @@ if __name__ == "__main__":
         root = ctk.CTk()
         app = DualApp(root)
         root.mainloop()
-
 
 

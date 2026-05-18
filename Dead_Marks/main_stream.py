@@ -7,6 +7,7 @@ from pylivelinkface import PyLiveLinkFace, FaceBlendShape
 from face_geometry import PCF, get_metric_landmarks
 from mediapipe.framework.formats import landmark_pb2
 from blendshape_utils import BLENDSHAPE_STREAM_NAMES
+from vmc_sender import VmcBlendshapeSender
 import json
 import os
 
@@ -57,9 +58,19 @@ load_neutral_pose()
 
 
 class CameraStreamRunner:
-    def __init__(self, udp_address="127.0.0.1", udp_port=11111, source=0):
+    def __init__(
+        self,
+        udp_address="127.0.0.1",
+        udp_port=11111,
+        source=0,
+        enable_vmc_output=False,
+        vmc_host="127.0.0.1",
+        vmc_port=39540,
+        send_deadface_udp_too=True,
+        vmc_debug=False,
+    ):
         self.udp_address = udp_address
-        self.udp_port = udp_port        
+        self.udp_port = udp_port
         self.source = source # Store the source
         self.running = False
         self.filter = None   # Will hold Kalman filter
@@ -68,7 +79,11 @@ class CameraStreamRunner:
         self.use_improved_shapes = False
         self.neutral_lip_distance = None
         self.curve_strength = 0.0
-
+        self.enable_vmc_output = enable_vmc_output
+        self.vmc_host = vmc_host
+        self.vmc_port = vmc_port
+        self.send_deadface_udp_too = send_deadface_udp_too
+        self.vmc_debug = vmc_debug
 
 
     def stop(self):
@@ -132,8 +147,18 @@ class CameraStreamRunner:
             cap = cv2.VideoCapture(self.source)
 
         py_face = PyLiveLinkFace()
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.connect((self.udp_address, self.udp_port))
+        sock = None
+        if self.send_deadface_udp_too:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.connect((self.udp_address, self.udp_port))
+
+        vmc_sender = None
+        if self.enable_vmc_output:
+            vmc_sender = VmcBlendshapeSender(
+                host=self.vmc_host,
+                port=self.vmc_port,
+                debug=self.vmc_debug,
+            )
 
         options = FaceLandmarkerOptions(
             base_options=BaseOptions(model_asset_path=model_path),
@@ -360,7 +385,10 @@ class CameraStreamRunner:
                         score = blendshape_dict.get(name, 0.0)
                         py_face.set_blendshape(FaceBlendShape(i), score)
 
-                    sock.sendall(py_face.encode())
+                    if sock is not None:
+                        sock.sendall(py_face.encode())
+                    if vmc_sender is not None:
+                        vmc_sender.send_blendshapes(blendshape_dict, blendshape_names)
 
                     # Draw annotated frame
                     annotated = draw_landmarks_on_image(rgb_frame, global_stream_result, override_blendshape_dict=blendshape_dict)
@@ -369,8 +397,10 @@ class CameraStreamRunner:
                     if display_callback:
                         display_callback(cv2.cvtColor(annotated, cv2.COLOR_RGB2BGR))
 
-        cap.release()
-        sock.close()
+        if cap is not None:
+            cap.release()
+        if sock is not None:
+            sock.close()
         cv2.destroyAllWindows()
 
 
@@ -540,6 +570,5 @@ def reload_multipliers():
     global multipliers
     multipliers = load_multipliers()
     # print("Multipliers reloaded.")
-
 
 

@@ -2,14 +2,19 @@ name: Build DeadFace
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
     tags:
       - v*
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
+  workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: build-deadface-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -17,11 +22,11 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             label: linux
-          - os: windows-latest
+          - os: windows-2022
             label: windows
-          - os: macos-latest
+          - os: macos-13
             label: macos
 
     steps:
@@ -36,33 +41,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Force every single dependency into one command to ensure harmony
-          pip install --no-cache-dir \
-            "pyinstaller==5.13.0" \
-            "numpy==1.26.2" \
-            "mediapipe==0.10.11" \
-            "protobuf<4" \
-            "jax<0.4.20" \
-            "jaxlib<0.4.20" \
-            "customtkinter" \
-            "opencv-python" \
-            "transforms3d" \
-            "timecode" \
-            "requests" \
-            "Pillow"        
-          # Bash syntax for checking if requirements.txt exists
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
+          pip install --no-cache-dir "pyinstaller==5.13.0"
+          pip install --no-cache-dir -r Dead_Marks/requirements.txt
         shell: bash
 
       - name: Build with PyInstaller
-        # Added --clean to ensure no cache interference between runs
         run: pyinstaller --noconfirm --clean DeadFace.spec
-
-      # --- PACKAGING ---
-      # 'Fix Windows data layout' was REMOVED because PyInstaller 5.13 
-      # puts data in the root by default, not in _internal.
 
       - name: Package zip (Linux/macOS)
         if: runner.os != 'Windows'
@@ -80,6 +64,7 @@ jobs:
         with:
           name: DeadFace_${{ matrix.label }}
           path: dist/DeadFace_${{ matrix.label }}.zip
+          if-no-files-found: error
 
   release:
     needs: build
@@ -95,4 +80,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*.zip
+          generate_release_notes: true
           token: ${{ secrets.GITHUB_TOKEN }}

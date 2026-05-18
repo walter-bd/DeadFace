@@ -6,3 +6,4 @@ timecode
 customtkinter
 requests
 Pillow
+python-osc
